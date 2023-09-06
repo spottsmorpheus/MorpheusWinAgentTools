@@ -33,14 +33,6 @@ if ($Response.StatusCode -eq 200) {
 
 It is possible to run these Powershell script from a Morpheus Task. You can use a Remote task (winRm) or even the Morpheus Agent itself. When changes are made to the agent config using the Morpheus Agent, a delayed restart is used to ensure the task completes and returns an acknowledgement to Morpheus, preventing possible issues with the task being re-queued by RabbitMq
 
-### Get-MorpheusAgentConfig
-
-Returns the current XML Documument containing the Agent configuration
-
-### Set-MorpheusAgentConfig
-
-Used to update the Agent XML Config. 
-
 ### Get-MorpheusAgentSocketStatus
 
 ```
@@ -90,6 +82,21 @@ SYNTAX
     Get-MorpheusAgentConfig [<CommonParameters>]
 ```
 
+
+### Get-MorpheusAgentApiKey
+
+```
+NAME
+    Get-MorpheusAgentApiKey
+
+SYNOPSIS
+    Returns the Morpheus Agent Api Key
+
+
+SYNTAX
+    Get-MorpheusAgentApiKey [<CommonParameters>]
+```
+
 ### Set-MorpheusAgentConfig
 
 ```
@@ -103,7 +110,7 @@ SYNOPSIS
 
 SYNTAX
     Set-MorpheusAgentConfig [[-LogLevel] <Int32>] [[-ApplianceUrl] <String>] [[-ApiKey] <String>] [-RestartAgent]
-    [[-SystemNetProxyXml] <String>] [<CommonParameters>]
+    [[-ProxyXml] <String>] [<CommonParameters>]
 
 ```
 
@@ -146,7 +153,7 @@ $proxyXml = @'
 
 Set-MorpheusAgentConfig -ProxyXml $proxyXml
 
-Paramater Option specifies XML for <system.net> element
+Paramater specifies following XML for <defaultProxy> element
 <?xml version="1.0" encoding="utf-16"?>
 <configuration>
   <system.net>
