@@ -126,3 +126,77 @@ To simply restart the agent after a 60 second delay
 ```
 Set-MorpheusAgentConfig  -RestartAgent
 ```
+
+Set the agent to use a proxy. Set bypass proxy on the local network to false. 
+Also set a proxy bypass list of addresses with a regex
+
+```
+$proxyXml = @'
+<configuration>
+  <system.net>
+    <defaultProxy>
+      <proxy usesystemdefault="False" proxyaddress="http://10.99.23.194:3128" bypassonlocal="False"/>
+      <bypasslist>
+         <add address="10\.99\..*" />
+      </bypasslist>
+    </defaultProxy>
+  </system.net>
+</configuration>
+'@
+
+Set-MorpheusAgentConfig -ProxyXml $proxyXml
+
+Paramater Option specifies XML for <system.net> element
+<?xml version="1.0" encoding="utf-16"?>
+<configuration>
+  <system.net>
+    <defaultProxy>
+      <proxy usesystemdefault="False" proxyaddress="http://10.99.23.194:3128" bypassonlocal="False" />
+      <bypasslist>
+        <add address="10\.99\..*" />
+      </bypasslist>
+    </defaultProxy>
+  </system.net>
+</configuration>
+WARNING: <defaultProxy> Node exists in current config - replacing <defaultProxy> element
+Saving new config
+WARNING: Agent Service must be restarted to use new configuration
+Returning Updated Agent Config ...
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <appSettings>
+    <add key="ServiceName" value="Morpheus Windows Agent" />
+    <add key="ApiKey" value="0538e2b0-d85f-4377-9f56-xxxxxxxx" />
+    <add key="Host" value="https://myappliance.example.com/" />
+    <add key="VmMode" value="true" />
+    <add key="LogLevel" value="1" />
+    <!-- 0 = debug; 1 = info; 2 = warn; 3 = error; 4 = off;-->
+    <add key="ClientSettingsProvider.ServiceUri" value="" />
+  </appSettings>
+  <startup>
+    <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.5.2" />
+  </startup>
+  <system.web>
+    <membership defaultProvider="ClientAuthenticationMembershipProvider">
+      <providers>
+        <add name="ClientAuthenticationMembershipProvider" type="System.Web.ClientServices.Providers.ClientFormsAuthenticationMembershipProvider, System.Web.Extensions, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" serviceUri="" />
+      </providers>
+    </membership>
+    <roleManager defaultProvider="ClientRoleProvider" enabled="true">
+      <providers>
+        <add name="ClientRoleProvider" type="System.Web.ClientServices.Providers.ClientRoleProvider, System.Web.Extensions, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" serviceUri="" cacheTimeout="86400" />
+      </providers>
+    </roleManager>
+  </system.web>
+  <system.net>
+    <defaultProxy>
+      <proxy usesystemdefault="False" proxyaddress="http://10.32.23.194:3128" bypassonlocal="False" />
+      <bypasslist>
+        <add address="10\.32\..*" />
+      </bypasslist>
+    </defaultProxy>
+  </system.net>
+</configuration>
+```
+
+See the Microsoft pages for details https://learn.microsoft.com/en-us/previous-versions/dotnet/netframework-1.1/aa903360(v=vs.71)

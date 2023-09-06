@@ -20,16 +20,17 @@ Function Set-MorpheusAgentConfig {
 
         The ApiKey MUST match exactly the ApiKey on the Compute Server details page
     
-    .PARAMETER SystemNetProxyXml
+    .PARAMETER ProxyXml
         Use this parameter to safely insert a well formed XML fragment for the agent Proxy configuration
         
         For example the Xml should be formed as so
-
-        <system.net>
-            <defaultProxy>
-                <proxy usesystemdefault="False" proxyaddress="http://10.32.23.194:3128" bypassonlocal="False" />
-            </defaultProxy>
-        </system.net>
+        <configuration>
+            <system.net>
+                <defaultProxy>
+                    <proxy usesystemdefault="False" proxyaddress="http://10.32.23.194:3128" bypassonlocal="False" />
+                </defaultProxy>
+            </system.net>
+        </configuration>
 
         See Microsoft documentation for full details
 
@@ -47,7 +48,7 @@ Function Set-MorpheusAgentConfig {
         [String]$ApplianceUrl=$null,
         [String]$ApiKey=$null,
         [Switch]$RestartAgent,
-        [String]$SystemNetProxyXml=""
+        [String]$ProxyXml=""
     )
     
     if (IsElevated) {
@@ -73,20 +74,20 @@ Function Set-MorpheusAgentConfig {
                     }
                     # Optionally Configure <system.Net> by adding XML $SystemNetXML
 
-                    if ($SystemNetProxyXml) {
+                    if ($ProxyXml) {
                         try {
-                            [Xml]$systemNet= $SystemNetProxyXml
-                            Write-Host "Paramater Option specifies XML for <system.net> element" -ForegroundColor Green
-                            Write-Host $(XmlPrettyPrint -Xml $SystemNetProxyXml) -ForegroundColor Cyan
+                            [Xml]$systemNet= $ProxyXml
+                            Write-Host "Paramater specifies following XML for <defaultProxy> element" -ForegroundColor Green
+                            Write-Host $(XmlPrettyPrint -Xml $ProxyXml) -ForegroundColor Cyan
                             # Import the new node ready to use in the Config XML document
                             # <system.net> Node for import
-                            $newSystemNetNode = $Config.ImportNode($systemNet.SelectSingleNode("/system.net"),$True)
+                            $newSystemNetNode = $Config.ImportNode($systemNet.SelectSingleNode("/configuration/system.net"),$True)
                             # <defaultProxy> Node for import
                             $newProxyNode = $newSystemNetNode.SelectSingleNode("/defaultProxy")
 
                         }
                         catch {
-                            Write-Error "SystemNetProxyXml is badly formed - check your XML"
+                            Write-Error "Parameter ProxyXml is badly formed - check your XML"
                             return
                         }
                         $systemNetNode = $Config.SelectSingleNode("/configuration/system.net")
