@@ -20,11 +20,12 @@ Functions have some help available which can be access via the Powershell Get-He
 It is possible to load these Functions directly from GitHub if your Endpoint has an Internet connection. Use the following  Powershell to download and Install a Dynamic Module directly from a GitHub Url
 
 ```
-$Uri = "https:://GitRaw"
+$Uri = "https://raw.githubusercontent.com/spottsmorpheus/MorpheusWinAgentTools/main/src/MorpheusAgentFunctions.ps1"
+$PrgressPreference = "SilentlyContinue"
 # Load Powershell code from GitHub Uri and invoke as a temporary Module
 $Response = Invoke-WebRequest -Uri $Uri -UseBasicParsing
 if ($Response.StatusCode -eq 200) {
-    New-Module -Name "MorpheusAgentFunctions" -ScriptBlock ([ScriptBlock]::Create($Response.Content))
+    $Module = New-Module -Name "MorpheusAgentFunctions" -ScriptBlock ([ScriptBlock]::Create($Response.Content))
 }
 ```
 

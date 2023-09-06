@@ -170,6 +170,32 @@ Function Get-MorpheusAgentConfig {
 }
 
 
+Function Get-MorpheusAgentApiKey {
+    <#
+    .SYNOPSIS
+        Returns the Morpheus Agent Api Key
+
+    .OUTPUTS
+        String containing the Api Key
+
+    #>
+
+    if (IsElevated) {     
+        [XML]$Config = Get-MorpheusAgentConfig
+        if ($Config) {
+            $ApiKey = $Config.SelectNodes("/configuration/appSettings/add") | Where-Object {$_.Key -eq "ApiKey"}
+            return $ApiKey.Value
+        } else {
+            Write-Warning "Failed to get ApiKey from Agent Config"
+            return ""
+        }
+    } else {
+        Write-Warning "This function must have Administrator privilege"
+        return ""
+    }
+}
+
+
 Function IsElevated {
     <#
     .SYNOPSIS
@@ -231,6 +257,7 @@ Function Get-MorpheusAgentSocketStatus {
                 $Status.agentSockets = foreach ($Socket in $Sockets) {
                     [PSCustomObject]@{
                         state = $Socket.State.ToString();
+                        apiKey = Get-MorpheusAgentApiKey
                         creationTime = $Socket.CreationTime.ToString("s");
                         localAddress = $Socket.LocalAddress;
                         localPort = $Socket.LocalPort;
