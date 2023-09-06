@@ -55,6 +55,27 @@ SYNTAX
     Get-MorpheusAgentSocketStatus [-AsJson] [<CommonParameters>]
 ```
 
+Example Output using the -AsJson parameter
+
+```
+{
+    "adminAccess":  true,
+    "machineName":  "SP60-W-0002",
+    "agentStatus":  "OK",
+    "agentState":  "Running",
+    "agentPid":  3224,
+    "agentSockets":  {
+                         "state":  "Established",
+                         "apiKey":  "b58a0dee-a4b9-441f-ba35-eb56ca5f124e",
+                         "creationTime":  "2023-09-06T09:55:30",
+                         "localAddress":  "10.99.20.73",
+                         "localPort":  63682,
+                         "remoteAddress":  "10.99.23.192",
+                         "remotePort":  443
+                     }
+}
+```
+
 ### Get-MorpheusAgentConfig
 
 ```

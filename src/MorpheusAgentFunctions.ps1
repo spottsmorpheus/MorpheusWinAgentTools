@@ -234,7 +234,8 @@ Function Get-MorpheusAgentSocketStatus {
         adminAccess=IsElevated;
         machineName=[Environment]::MachineName;
         agentStatus="";
-        agentState=""
+        agentState="";
+        apiKey="";
         agentPid=$null;
         agentSockets=$null
     }
@@ -244,6 +245,7 @@ Function Get-MorpheusAgentSocketStatus {
         if ($Agent) {
             $Status.agentStatus = $Agent.Status
             $Status.agentState = $Agent.State
+            $Status.apiKey = Get-MorpheusAgentApiKey
             # We have an agent - Does it have a Pid
             if ($Agent.ProcessId -Ne 0) {
                 $Status.agentPid = $Agent.ProcessId
@@ -257,7 +259,6 @@ Function Get-MorpheusAgentSocketStatus {
                 $Status.agentSockets = foreach ($Socket in $Sockets) {
                     [PSCustomObject]@{
                         state = $Socket.State.ToString();
-                        apiKey = Get-MorpheusAgentApiKey
                         creationTime = $Socket.CreationTime.ToString("s");
                         localAddress = $Socket.LocalAddress;
                         localPort = $Socket.LocalPort;
