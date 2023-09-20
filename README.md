@@ -10,8 +10,7 @@ To load the script Dot Source the MorpheusAgentFunctions.ps1 file into a powersh
 PS> . .\MorpheusAgentFunctions.ps1
 ```
 
-**NOTE** to run these Powershell Scripts the account must be and Administrator and the session elevated. The scriopt will warn if there are 
-insuccifient access rights.
+**NOTE** to run these Powershell Scripts the account must be and Administrator and the session elevated. The scriopt will warn if there are insuccifient access rights.
 
 Functions have some help available which can be access via the Powershell Get-Help \<Function-Name\> command
 
@@ -21,7 +20,7 @@ It is possible to load these Functions directly from GitHub if your Endpoint has
 
 ```
 $Uri = "https://raw.githubusercontent.com/spottsmorpheus/MorpheusWinAgentTools/main/src/MorpheusAgentFunctions.ps1"
-$PrgressPreference = "SilentlyContinue"
+$ProgressPreference = "SilentlyContinue"
 # Load Powershell code from GitHub Uri and invoke as a temporary Module
 $Response = Invoke-WebRequest -Uri $Uri -UseBasicParsing
 if ($Response.StatusCode -eq 200) {
