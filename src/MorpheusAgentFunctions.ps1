@@ -316,7 +316,14 @@ Function Delay-AgentRestart {
         else {
             return 0
         }
-} 
+}
+
+Function Base64Decode {
+    param (
+        [String]$B64
+    )
+    return [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String($B64))
+}
 
 Function XmlPrettyPrint {
     <#
@@ -424,6 +431,7 @@ Function Parse-StompMessage {
     Begin {
         #Match and caputre the json body in a Stomp Frame
         $jsonPattern = "^([\[\{]*.*[\}\]]*)\u0000$"
+        $pscmdPattern = "^.*-encodedcommand ([A-Za-z0-9=]*)$"
         $Rtn = [System.Collections.Generic.List[Object]]::new()
     }
     Process {
@@ -436,7 +444,7 @@ Function Parse-StompMessage {
                 header=[PSCustomObject]@{};
                 body=[PSCustomObject]@{}
             }
-            #Match and caputre the json body in a Stomp Frame
+            #Match and capture the json body in a Stomp Frame
             $data = $null
             if ($m -Match "^INFO:Received Stomp Frame: ([A-Z]*)\\n(.*)$") {
                 $stomp.frameType = $Matches[1]
@@ -459,6 +467,10 @@ Function Parse-StompMessage {
                         if ($body.command) {
                             $decodedCmd = [Text.encoding]::utf8.getstring([convert]::FromBase64String($body.command))
                             Add-Member -InputObject $stomp.body -MemberType NoteProperty -Name "decodedCommand" -Value $decodedCmd
+                            if ($decodedCmd -match $pscmdPattern) {
+                                $script = Base64Decode $Matches[1]
+                                Add-Member -InputObject $stomp.body -MemberType NoteProperty -Name "decodedScript" -Value $script
+                            }
                         }             
                     } else {
                         #Write-Host "Line $($f)" -ForegroundColor Green
