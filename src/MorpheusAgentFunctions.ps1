@@ -402,7 +402,7 @@ Function Read-AgentLog {
         $output = [PSCustomObject]@{
             computer=$e.MachineName;
             recordId=$e.RecordId;
-            Time=$e.TimeCreated.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+            timeStamp=$e.TimeCreated.ToString("yyyy-MM-ddTHH:mm:ss.fff");
             message=$e.Message
         }
         $output
@@ -418,7 +418,7 @@ Function Parse-StompMessage {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, Position = 0,ValueFromPipeline=$true)]
-        [string[]]$Message
+        [Object[]]$AgentEvent
     )
 
     Begin {
@@ -427,37 +427,45 @@ Function Parse-StompMessage {
         $Rtn = [System.Collections.Generic.List[Object]]::new()
     }
     Process {
-        foreach ($m in $Message) {
-            $stomp = [PSCustomObject]@{frame=""}
+        foreach ($Event in $AgentEvent) {
+            $m = $Event.Message
+            $stomp = [PSCustomObject]@{
+                recordId = $Event.RecordId;
+                timeStamp = $Event.timeStamp;
+                frameType="";
+                header=[PSCustomObject]@{};
+                body=[PSCustomObject]@{}
+            }
             #Match and caputre the json body in a Stomp Frame
             $data = $null
-            if ($m -Match "^INFO:Received Stomp Frame: MESSAGE\\n(.*)$") {
-                $Stomp.frame = "MESSAGE"
+            if ($m -Match "^INFO:Received Stomp Frame: ([A-Z]*)\\n(.*)$") {
+                $stomp.frameType = $Matches[1]
                 Write-Host "Found MESSAGE Frame" -ForegroundColor Yellow
-                $data = $Matches[1]
+                $data = $Matches[2]
             } elseif ($m -Match '^INFO:Sending Message: \["(.*)"\]$' ) {
-                $Stomp.frame = "SEND"
+                $stomp.frameType = "SEND"
                 Write-Host "Found SEND Frame" -ForegroundColor Green
                 $data = $Matches[1]
             }
             if ($data) {
                 $frame = [Regex]::Unescape($data) -Split "\n"
+                if ($stomp.frameType -eq "") {$stomp.frameType = $frame[0]}
                 foreach ($f in $frame) {
                     if ($f -match $jsonPattern) {
-                        #json
+                        #json Body
                         #Write-Host "Found json Body $($Matches[1])" -ForegroundColor Blue
                         $body = ConvertFrom-Json -InputObject $Matches[1]
-                        Add-Member -InputObject $stomp -MemberType NoteProperty -Name "body" -Value $body
+                        if ($body) {$stomp.body = $body}
                         if ($body.command) {
                             $decodedCmd = [Text.encoding]::utf8.getstring([convert]::FromBase64String($body.command))
-                            Add-Member -InputObject $stomp -MemberType NoteProperty -Name "decodedCommand" -Value $decodedCmd
+                            Add-Member -InputObject $stomp.body -MemberType NoteProperty -Name "decodedCommand" -Value $decodedCmd
                         }             
                     } else {
                         #Write-Host "Line $($f)" -ForegroundColor Green
                         $keyVal = $f -split ":"
                         if ($keyVal.count -eq 2) {
                             #Write-Host "Found $($keyVal[0]) value $($keyVal[1])" -ForegroundColor Green
-                            Add-Member -InputObject $stomp -MemberType NoteProperty -Name $keyVal[0] -Value $keyVal[1]
+                            Add-Member -InputObject $stomp.header -MemberType NoteProperty -Name $keyVal[0] -Value $keyVal[1]
                         } elseif ($keyVal.count -eq 0) {
         
                         }
