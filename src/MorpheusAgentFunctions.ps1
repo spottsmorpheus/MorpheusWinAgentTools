@@ -363,3 +363,112 @@ Function XmlPrettyPrint {
     }
 
 }
+
+
+Function Read-AgentLog {
+    <#
+    .SYNOPSIS
+        Reads the Morpheus Agentlogs and returns script executions. If the scriopt is Base64 encoded then
+        this script decodes and returns the actual powershell.
+
+    .PARAMETER EventId
+        Event ID to read. Default is Event 403
+
+    .PARAMETER Computer
+        Computername. Default is local Computer
+
+    .PARAMETER StartDate
+
+    .OUTPUTS
+        DateTime when the Windows Installation completed
+
+    #>
+    [CmdletBinding()]    
+    param (
+        [String]$Computer=$null,
+        [DateTime]$StartDate=[DateTime]::Now.AddMinutes(-30),
+        [Switch]$AsJson
+    )
+
+    #Default to Setup Date if no StartDate
+    if (-Not $StartDate) {
+        $StartDate = (Get-WindowsSetupDate).installDate.Date
+    }
+    $Filter = @{LogName="Morpheus Windows Agent";StartTime=$StartDate}
+
+    $Events = Get-WinEvent -FilterHashtable $Filter | Sort-Object -Property RecordId
+
+    $eventData = foreach ($e in $Events) {
+        $output = [PSCustomObject]@{
+            computer=$e.MachineName;
+            recordId=$e.RecordId;
+            Time=$e.TimeCreated.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+            message=$e.Message
+        }
+        $output
+    }
+    if ($AsJson) {
+        return $eventData | ConvertTo-Json -Depth 3 
+    } else {
+        return $eventData
+    }    
+}
+
+Function Parse-StompMessage {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, Position = 0,ValueFromPipeline=$true)]
+        [string[]]$Message
+    )
+
+    Begin {
+        #Match and caputre the json body in a Stomp Frame
+        $jsonPattern = "^([\[\{]*.*[\}\]]*)\u0000$"
+        $Rtn = [System.Collections.Generic.List[Object]]::new()
+    }
+    Process {
+        foreach ($m in $Message) {
+            $stomp = [PSCustomObject]@{frame=""}
+            #Match and caputre the json body in a Stomp Frame
+            $data = $null
+            if ($m -Match "^INFO:Received Stomp Frame: MESSAGE\\n(.*)$") {
+                $Stomp.frame = "MESSAGE"
+                Write-Host "Found MESSAGE Frame" -ForegroundColor Yellow
+                $data = $Matches[1]
+            } elseif ($m -Match '^INFO:Sending Message: \["(.*)"\]$' ) {
+                $Stomp.frame = "SEND"
+                Write-Host "Found SEND Frame" -ForegroundColor Green
+                $data = $Matches[1]
+            }
+            if ($data) {
+                $frame = [Regex]::Unescape($data) -Split "\n"
+                foreach ($f in $frame) {
+                    if ($f -match $jsonPattern) {
+                        #json
+                        #Write-Host "Found json Body $($Matches[1])" -ForegroundColor Blue
+                        $body = ConvertFrom-Json -InputObject $Matches[1]
+                        Add-Member -InputObject $stomp -MemberType NoteProperty -Name "body" -Value $body
+                        if ($body.command) {
+                            $decodedCmd = [Text.encoding]::utf8.getstring([convert]::FromBase64String($body.command))
+                            Add-Member -InputObject $stomp -MemberType NoteProperty -Name "decodedCommand" -Value $decodedCmd
+                        }             
+                    } else {
+                        #Write-Host "Line $($f)" -ForegroundColor Green
+                        $keyVal = $f -split ":"
+                        if ($keyVal.count -eq 2) {
+                            #Write-Host "Found $($keyVal[0]) value $($keyVal[1])" -ForegroundColor Green
+                            Add-Member -InputObject $stomp -MemberType NoteProperty -Name $keyVal[0] -Value $keyVal[1]
+                        } elseif ($keyVal.count -eq 0) {
+        
+                        }
+                    }
+                }
+                $Rtn.Add($stomp)
+            }
+        }
+    }
+    End {
+        Return $Rtn
+    }
+
+}
