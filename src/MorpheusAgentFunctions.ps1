@@ -375,24 +375,20 @@ Function XmlPrettyPrint {
 Function Read-AgentLog {
     <#
     .SYNOPSIS
-        Reads the Morpheus Agentlogs and returns script executions. If the scriopt is Base64 encoded then
-        this script decodes and returns the actual powershell.
-
-    .PARAMETER EventId
-        Event ID to read. Default is Event 403
-
-    .PARAMETER Computer
-        Computername. Default is local Computer
+        Reads the Morpheus Agentlogs and returns the Event Message
 
     .PARAMETER StartDate
+        Enter a [DateTime] to start reading events from. Default is previous 30 minutes
+    
+    .PARAMETER AsJson
+        Return output as Json
 
     .OUTPUTS
-        DateTime when the Windows Installation completed
+        Morpheus Agent events from StartDate
 
     #>
     [CmdletBinding()]    
     param (
-        [String]$Computer=$null,
         [DateTime]$StartDate=[DateTime]::Now.AddMinutes(-30),
         [Switch]$AsJson
     )
@@ -422,6 +418,17 @@ Function Read-AgentLog {
 }
 
 Function Parse-StompMessage {
+    <#
+    .SYNOPSIS
+        Takes the output from Read-AgentLog and attents to process the Stomp frames
+
+    .PARAMETER AgentEvent
+        Array of agent events returned form Read-AgentLogs.  Will accept input from pipeline
+
+    .OUTPUTS
+        Morpheus Agent Stomnp Messages
+
+    #>
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, Position = 0,ValueFromPipeline=$true)]
@@ -448,12 +455,12 @@ Function Parse-StompMessage {
             $data = $null
             if ($m -Match "^INFO:Received Stomp Frame: ([A-Z]*)\\n(.*)$") {
                 $stomp.frameType = $Matches[1]
-                Write-Host "Found MESSAGE Frame" -ForegroundColor Yellow
                 $data = $Matches[2]
+                Write-Verbose "Found Received MESSAGE Frame" 
             } elseif ($m -Match '^INFO:Sending Message: \["(.*)"\]$' ) {
-                $stomp.frameType = "SEND"
-                Write-Host "Found SEND Frame" -ForegroundColor Green
+                $stomp.frameType = "" # don't know frame type just yet
                 $data = $Matches[1]
+                Write-Verbose "Found a SEND Frame" 
             }
             if ($data) {
                 $frame = [Regex]::Unescape($data) -Split "\n"
@@ -461,7 +468,7 @@ Function Parse-StompMessage {
                 foreach ($f in $frame) {
                     if ($f -match $jsonPattern) {
                         #json Body
-                        #Write-Host "Found json Body $($Matches[1])" -ForegroundColor Blue
+                        Write-Verbose "Found json Body $($Matches[1])" 
                         $body = ConvertFrom-Json -InputObject $Matches[1]
                         if ($body) {$stomp.body = $body}
                         if ($body.command) {
@@ -473,7 +480,7 @@ Function Parse-StompMessage {
                             }
                         }             
                     } else {
-                        #Write-Host "Line $($f)" -ForegroundColor Green
+                        Write-Verbose "Line $($f)"
                         $keyVal = $f -split ":"
                         if ($keyVal.count -eq 2) {
                             #Write-Host "Found $($keyVal[0]) value $($keyVal[1])" -ForegroundColor Green

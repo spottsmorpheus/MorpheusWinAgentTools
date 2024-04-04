@@ -113,6 +113,37 @@ SYNTAX
 
 ```
 
+### Read-AgentLog
+```
+NAME
+    Read-AgentLog
+
+SYNOPSIS
+    Reads the Morpheus Agentlogs and returns the Event Message
+
+
+SYNTAX
+    Read-AgentLog [[-StartDate] <DateTime>] [-AsJson] [<CommonParameters>]
+
+```
+
+### Parse-StompMessage
+
+```
+NAME
+    Parse-StompMessage
+
+SYNOPSIS
+    Takes the output from Read-AgentLog and attents to process the Stomp frames
+
+
+SYNTAX
+    Parse-StompMessage [-AgentEvent] <Object[]> [<CommonParameters>]
+
+
+```
+
+
 ### Examples
 
 Set the Morpheus Agent log level to Informational level (1) restarting the agent after a 60 second delay
@@ -132,6 +163,19 @@ To simply restart the agent after a 60 second delay
 ```
 Set-MorpheusAgentConfig  -RestartAgent
 ```
+
+If the Debug level is Info or Debug you can use the following function to extract the last 30 minutes of Agent events
+
+```
+Read-AgentLog
+```
+
+and to parse the message frames use
+
+```
+Read-AgentLog | Parse-StompMessage
+```
+
 
 Set the agent to use a proxy. Set bypass proxy on the local network to false. 
 Also set a proxy bypass list of addresses with a regex
