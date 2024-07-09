@@ -1,3 +1,13 @@
+# Script wide Variable
+$XmlQueryTemplate = @'
+<QueryList>
+  <Query Id="0" Path="Security">
+    <Select Path="Security">
+       {0}
+    </Select>
+  </Query>
+</QueryList>
+'@
 
 Function Set-MorpheusAgentConfig {
     <#
@@ -289,6 +299,61 @@ Function Get-MorpheusAgentSocketStatus {
     }
 }
 
+Function Set-MorpheusAgentCredential {
+    <#
+    .SYNOPSIS
+        Helper Tool used to modify the Agent Service Logon Account
+
+    .PARAMETER Credential
+        Credential Object. The Morpheus Agent will be set to use these credentials
+
+    .PARAMETER Default
+        Switch Parameter which if present resets credentials to LocalSystem. Overrides Credential if this is also present
+
+    .OUTPUTS
+        Returns the Process Id of the detached process responsible for restarting the Morpheus Windows Agent service.
+        Returns 0 if the Detached process failed to start successfully
+
+    #>     
+    [CmdletBinding()]
+    param (
+        [PSCredential]$Credential,
+        [Switch]$Default
+    )
+    
+    # Note that Credential should be a member of Local administrators group and will need to have Logon as Service rights assigned
+    # TODO Only pick up an error when trying to start the service
+    if (IsElevated) {
+        $restart = $false
+        $agent = Get-WmiObject -Class win32_Service -Filter "Name like 'Morpheus Windows Agent'"
+        if ($agent) {
+            if ($Default) {
+                $status = $agent.Change($null,$null,$null,$null,$null,$null,".\LocalSystem","",$null,$null,$null)
+                if ($status.ReturnValue -gt 0) {
+                    Write-Warning "Agent Service retuned a status code $($status.ReturnValue)"
+                } else {
+                    $restart = $true
+                }           
+            } else {
+                if ($Credential) {
+                    $status = $agent.Change($null,$null,$null,$null,$null,$null,$Credential.UserName,$Credential.GetNetworkCredential().Password,$null,$null,$null)
+                    if ($status.ReturnValue -gt 0) {
+                        Write-Warning "Agent Service retuned a status code $($status.ReturnValue)"
+                    } else {
+                        $restart = $true
+                    }
+                }
+            }
+            if ($restart) {
+                Delay-AgentRestart -Delay 10
+            }
+        } 
+    } else {
+        Write-Warning "You need to be an Administrator to run this Function"
+    }
+}
+
+
 Function Delay-AgentRestart {
     <#
     .SYNOPSIS
@@ -498,4 +563,26 @@ Function Parse-StompMessage {
         Return $Rtn
     }
 
+}
+
+Function Get-ScheduledTaskEvents {
+    [CmdletBinding()]
+    param (
+        [String]$TaskName,
+        [String]$TaskPath="\",
+        [Int32]$RecentMinutes=30
+    )    
+
+    $TimeSpan = (New-TimeSpan -Minutes $RecentMinutes).TotalMilliseconds
+    $Task = Join-Path -Path $TaskPath -ChildPath $TaskName
+    #Filter the Event\System Node for EventId's and TimeCreated 
+    $xSysFilter = "TimeCreated[timediff(@SystemTime)&lt;={0}]" -f $TimeSpan
+    $xEventDataFilter = "[EventData[Data[@Name='TaskName']='{0}']]" -f $Task
+    # Construct the xPath filter
+    $xPath = "Event[System[{0}]]{1}" -f $xSysFilter, $xEventDataFilter
+    Write-Verbose "Using xPath Filter $($xPath)"
+    $XmlQuery = $Script:XmlQueryTemplate -f $xPath
+    Write-Host $XmlQuery
+    $Events = Get-WinEvent -FilterXml $XmlQuery  -ErrorAction "SilentlyContinue"
+    $Events
 }
