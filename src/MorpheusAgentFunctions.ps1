@@ -1,8 +1,8 @@
 # Script wide Variable
 $XmlQueryTemplate = @'
 <QueryList>
-  <Query Id="0" Path="Security">
-    <Select Path="Security">
+  <Query Id="0" Path="{1}">
+    <Select Path="{1}">
        {0}
     </Select>
   </Query>
@@ -581,7 +581,7 @@ Function Get-ScheduledTaskEvents {
     # Construct the xPath filter
     $xPath = "Event[System[{0}]]{1}" -f $xSysFilter, $xEventDataFilter
     Write-Verbose "Using xPath Filter $($xPath)"
-    $XmlQuery = $Script:XmlQueryTemplate -f $xPath
+    $XmlQuery = $Script:XmlQueryTemplate -f $xPath, "Microsoft-Windows-TaskScheduler/Operational"
     Write-Host $XmlQuery
     $Events = Get-WinEvent -FilterXml $XmlQuery  -ErrorAction "SilentlyContinue"
     $Events
