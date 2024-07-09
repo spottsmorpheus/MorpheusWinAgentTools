@@ -1,3 +1,13 @@
+# Script wide Variable
+$XmlQueryTemplate = @'
+<QueryList>
+  <Query Id="0" Path="Security">
+    <Select Path="Security">
+       {0}
+    </Select>
+  </Query>
+</QueryList>
+'@
 
 Function Set-MorpheusAgentConfig {
     <#
@@ -553,4 +563,26 @@ Function Parse-StompMessage {
         Return $Rtn
     }
 
+}
+
+Function Get-ScheduledTaskEvents {
+    [CmdletBinding()]
+    param (
+        [String]$TaskName,
+        [String]$TaskPath="\",
+        [Int32]$RecentMinutes=30
+    )    
+
+    $TimeSpan = (New-TimeSpan -Minutes $RecentMinutes).TotalMilliseconds
+    $Task = Join-Path -Path $TaskPath -ChildPath $TaskName
+    #Filter the Event\System Node for EventId's and TimeCreated 
+    $xSysFilter = "TimeCreated[timediff(@SystemTime)&lt;={0}]" -f $TimeSpan
+    $xEventDataFilter = "[EventData[Data[@Name='TaskName']='{0}']]" -f $Task
+    # Construct the xPath filter
+    $xPath = "Event[System[{0}]]{1}" -f $xSysFilter, $xEventDataFilter
+    Write-Verbose "Using xPath Filter $($xPath)"
+    $XmlQuery = $Script:XmlQueryTemplate -f $xPath
+    Write-Host $XmlQuery
+    $Events = Get-WinEvent -FilterXml $XmlQuery  -ErrorAction "SilentlyContinue"
+    $Events
 }
