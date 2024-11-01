@@ -384,10 +384,17 @@ Function Delay-AgentRestart {
 }
 
 Function Base64Decode {
+    [CmdletBinding()]
     param (
-        [String]$B64
+        [String]$B64,
+        [ValidateSet("Unicode","UTF8")]
+        [String]$Encoding="Unicode"
     )
-    return [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String($B64))
+    if ($Encoding) {
+        return [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String($B64))
+    } else {
+        return [System.Text.Encoding]::UFT8.GetString([System.Convert]::FromBase64String($B64))
+    } 
 }
 
 Function XmlPrettyPrint {
@@ -540,8 +547,8 @@ Function Parse-StompMessage {
                             $decodedCmd = [Text.encoding]::utf8.getstring([convert]::FromBase64String($body.command))
                             Add-Member -InputObject $stomp.body -MemberType NoteProperty -Name "decodedCommand" -Value $decodedCmd
                             if ($decodedCmd -match $pscmdPattern) {
-                                $script = Base64Decode $Matches[1]
-                                Add-Member -InputObject $stomp.body -MemberType NoteProperty -Name "decodedScript" -Value $script
+                                $entry = Base64Decode $Matches[1]
+                                Add-Member -InputObject $stomp.body -MemberType NoteProperty -Name "decodedScript" -Value $entry
                             }
                         }             
                     } else {
@@ -581,8 +588,156 @@ Function Get-ScheduledTaskEvents {
     # Construct the xPath filter
     $xPath = "Event[System[{0}]]{1}" -f $xSysFilter, $xEventDataFilter
     Write-Verbose "Using xPath Filter $($xPath)"
-    $XmlQuery = $Script:XmlQueryTemplate -f $xPath, "Microsoft-Windows-TaskScheduler/Operational"
+    $XmlQuery = $entry:XmlQueryTemplate -f $xPath, "Microsoft-Windows-TaskScheduler/Operational"
     Write-Host $XmlQuery
     $Events = Get-WinEvent -FilterXml $XmlQuery  -ErrorAction "SilentlyContinue"
     $Events
+}
+
+Function Read-PSLog {
+    <#
+    .SYNOPSIS
+        Reads the Windows Powershell logs and returns script executions. If the script is Base64 encoded then
+        this script decodes and returns the actual powershell. Useful for reading any Morpheus WinRm RPC commands
+
+    .PARAMETER EventId
+        Event ID to read. Default is Event 400
+
+    .PARAMETER Computer
+        Computername. Default is local Computer
+
+    .PARAMETER StartDate
+
+    .OUTPUTS
+        DateTime when the Windows Installation completed
+
+    #>
+    [CmdletBinding()]    
+    param (
+        $EventId=400,
+        [String]$Computer=$null,
+        [DateTime]$StartDate,
+        [Switch]$AsJson
+    )
+
+    #Default to Setup Date if no StartDate
+    if (-Not $StartDate) {
+        $StartDate = (Get-WindowsSetupDate).installDate.Date
+    }
+    $Filter = @{LogName="Windows Powershell";Id=$EventId;StartTime=$StartDate}
+
+    $Events = Get-WinEvent -FilterHashtable $Filter | Sort-Object -Property RecordId
+
+    $eventData = foreach ($e in $Events) {
+        $output = [PSCustomObject]@{
+            computer=$e.MachineName;
+            index=$e.RecordId;
+            Time=$e.TimeCreated.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+            host="";
+            command="";
+            encodedcommand=""
+        }
+        
+        if ($e.message -match "HostName=(.*)\r") {
+            $output.host=$matches[1]
+        }
+        if ($e.message -match "HostApplication=(.*)\r") {
+            $output.command=$matches[1]
+            if ($output.command -match "-encodedcommand (\S*)") {
+                #Base64 encoded command
+                $output.encodedcommand=[System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String($matches[1]))
+            }
+        }
+        $output
+    }
+    if ($AsJson) {
+        return $eventData | ConvertTo-Json -Depth 3 
+    } else {
+        return $eventData
+    }    
+}
+
+
+Function Parse-PSLog {
+    <#
+    .SYNOPSIS
+        Takes the output from Read-PSLog and attemts to extract the Powershell scripts executes of RPC/Agent.
+
+    .PARAMETER Path
+        Where to dump the script files
+
+    .OUTPUTS
+        DateTime when the Windows Installation completed
+
+    #>
+    [CmdletBinding()]    
+    param (
+        [Parameter(Mandatory = $true, Position = 0,ValueFromPipeline=$true)]
+        [Object[]]$PSEvent,
+        [String]$Path=$Env:UserProfile,
+        [Switch]$AsJson
+    )
+    
+    Begin {
+        #Match and caputre the json body in a Stomp Frame
+        $psFragment = '^powershell.*(\[System\.IO\.File\]::AppendAllText\(([^,]*).*)'
+        $psFile = "^powershell.*-File\s+(.*)$"
+        $psEncoded = "^powershell.*-encodedcommand\s+(.*)$"
+        $p2 = "^powershell.*AppendAllText\(([^,]*),([^,]*).*$"
+        $Index = @{}
+        $Out = [System.Collections.Generic.List[PSCustomObject]]::new()
+    }
+    Process {
+        foreach ($event in $PSEvent) {
+            $entry = [PSCustomObject]@{
+                id="";
+                eventIndex=$event.index;
+                path="";
+                executed=$event.Time;
+                content=""
+            }
+            if ($event.command -Match $psFile) {
+                write-Host ("Found Execute file {0} - Add to list " -f $Matches[1]) -ForegroundColor Yellow
+                $id = Split-Path -Path $filepath.Trim("'") -Leaf
+                $entry.id = $id
+                $entry.content = [System.IO.File]::ReadAllLines((Join-Path -Path $Path -ChildPath $id))
+                $Out.Add($entry)
+            } elseif ($event.command -Match $psFragment) {
+                # Matches[1] - command
+                # Matches[2] - filename
+                $filepath = $Matches[2]
+                $id = Split-Path -Path $filepath.Trim("'") -Leaf
+                write-Host ("Event {0} - Time {1}" -f $event.Index, $event.Time) -ForegroundColor Green
+                write-Host ("File Id {0}" -f $id) -ForegroundColor Green
+                #write-Host ("Found cmd {0}" -f $cmd) -ForegroundColor Green
+                $Name = Join-Path -Path $Path -ChildPath $id
+                $cmd = $Matches[1].Replace($filepath,"`$Name")
+                if ($Index.ContainsKey($id)) {
+                    #Append
+                    $Index.Item($id)++
+                    write-Host ("Found Next fragment for {0} - fragment {1}" -f $Name, $Index.Item($Id)) -ForegroundColor Green			
+                } else {
+                    #New File
+                    $Index.Add($id,1)
+                    Remove-Item -Path $Name -Force
+                    write-Host ("Found New fragment for {0}" -f $Name) -ForegroundColor Blue
+                }
+                # Execute the fragment
+                Invoke-Expression $cmd
+            } elseif ($event.command -Match $psEncoded) {
+                Write-Host "Found Encoded Command"
+                $cmd = Base64Decode -B64 $Matches[1]
+                $entry.id = "rpc-{0}" -F $event.index
+                $entry.content = $cmd
+                $Out.Add($entry)
+            }
+        }
+    }
+    End {
+        if ($AsJson) {
+            return $Out | ConvertTo-Json
+        } else {
+            return $Out
+        }
+    }
 }
