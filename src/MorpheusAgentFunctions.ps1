@@ -700,7 +700,7 @@ Function Parse-PSLog {
                 write-Host ("Found Execute file {0} - Add to list " -f $Matches[1]) -ForegroundColor Yellow
                 $id = Split-Path -Path $filepath.Trim("'") -Leaf
                 $entry.id = $id
-                $entry.content = [System.IO.File]::ReadAllLines((Join-Path -Path $Path -ChildPath $id))
+                $entry.content = [System.IO.File]::ReadAllText((Join-Path -Path $Path -ChildPath $id))
                 $Out.Add($entry)
             } elseif ($event.command -Match $psFragment) {
                 # Matches[1] - command
