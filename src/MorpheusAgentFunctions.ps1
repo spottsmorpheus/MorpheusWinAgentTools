@@ -723,7 +723,7 @@ Function Parse-PSLog {
                 } else {
                     #New File
                     $Index.Add($id,1)
-                    Remove-Item -Path $Name -Force
+                    if (Test-Path -Path $Name) {Remove-Item -Path $Name -Force}
                     write-Host ("Found New fragment for {0}" -f $Name) -ForegroundColor Blue
                 }
                 # Execute the fragment
