@@ -675,7 +675,8 @@ Function Parse-PSLog {
         [Parameter(Mandatory = $true, Position = 0,ValueFromPipeline=$true)]
         [Object[]]$PSEvent,
         [String]$Path=$Env:UserProfile,
-        [Switch]$AsJson
+        [Switch]$AsJson,
+        [Switch]$Cleanup
     )
     
     Begin {
@@ -692,16 +693,19 @@ Function Parse-PSLog {
             $entry = [PSCustomObject]@{
                 id="";
                 eventIndex=$event.index;
-                path="";
+                length=0;
                 executed=$event.Time;
                 content=""
             }
             if ($event.command -Match $psFile) {
                 write-Host ("Found Execute file {0} - Add to list " -f $Matches[1]) -ForegroundColor Yellow
                 $id = Split-Path -Path $filepath.Trim("'") -Leaf
+                $tmpPath = Join-Path -Path $Path -ChildPath $id
                 $entry.id = $id
-                $entry.content = [System.IO.File]::ReadAllText((Join-Path -Path $Path -ChildPath $id))
+                $entry.content = [System.IO.File]::ReadAllText($tmpPath)
+                $entry.length = $entry.content.length
                 $Out.Add($entry)
+                if ($CleanUp) {Remove-Item -Path $tmpPath -Force}
             } elseif ($event.command -Match $psFragment) {
                 # Matches[1] - command
                 # Matches[2] - filename
@@ -729,6 +733,7 @@ Function Parse-PSLog {
                 $cmd = Base64Decode -B64 $Matches[1]
                 $entry.id = "rpc-{0}" -F $event.index
                 $entry.content = $cmd
+                $entry.length = $cmd.length
                 $Out.Add($entry)
             }
         }
