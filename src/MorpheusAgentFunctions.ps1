@@ -620,9 +620,9 @@ Function Read-PSLog {
         [Switch]$AsJson
     )
 
-    #Default to Setup Date if no StartDate
+    #Default last 30 minutes if no start date
     if (-Not $StartDate) {
-        $StartDate = (Get-WindowsSetupDate).installDate.Date
+        $StartDate = (Get-Date).AddMinutes(-30)
     }
     $Filter = @{LogName="Windows Powershell";Id=$EventId;StartTime=$StartDate}
 
