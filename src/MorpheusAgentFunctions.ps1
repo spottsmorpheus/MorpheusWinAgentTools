@@ -452,6 +452,10 @@ Function Read-AgentLog {
     .PARAMETER StartDate
         Enter a [DateTime] to start reading events from. Default is previous 30 minutes
     
+    .PARAMETER Minutes
+
+        Number of Minutes to read from StartDate - Default 60        
+    
     .PARAMETER AsJson
         Return output as Json
 
@@ -462,6 +466,7 @@ Function Read-AgentLog {
     [CmdletBinding()]    
     param (
         [DateTime]$StartDate=[DateTime]::Now.AddMinutes(-30),
+        [Int32]$Minutes=60,
         [Switch]$AsJson
     )
 
@@ -469,7 +474,8 @@ Function Read-AgentLog {
     if (-Not $StartDate) {
         $StartDate = (Get-WindowsSetupDate).installDate.Date
     }
-    $Filter = @{LogName="Morpheus Windows Agent";StartTime=$StartDate}
+    $EndDate = $StartDate.AddMinutes($Minutes)
+    $Filter = @{LogName="Morpheus Windows Agent";StartTime=$StartDate;EndTime=$EndDate}
 
     $Events = Get-WinEvent -FilterHashtable $Filter | Sort-Object -Property RecordId
 
@@ -607,6 +613,15 @@ Function Read-PSLog {
         Computername. Default is local Computer
 
     .PARAMETER StartDate
+        Date / Time to start reading the log
+    
+    .PARAMETER Minutes
+
+        Number of Minutes to read from StartDate - Default 60
+    
+    .PARAMETER AsJson
+
+        Output results in json
 
     .OUTPUTS
         DateTime when the Windows Installation completed
@@ -617,6 +632,7 @@ Function Read-PSLog {
         $EventId=400,
         [String]$Computer=$null,
         [DateTime]$StartDate,
+        [Int32]$Minutes=60,
         [Switch]$AsJson
     )
 
@@ -624,7 +640,8 @@ Function Read-PSLog {
     if (-Not $StartDate) {
         $StartDate = (Get-Date).AddMinutes(-30)
     }
-    $Filter = @{LogName="Windows Powershell";Id=$EventId;StartTime=$StartDate}
+    $EndDate = $StartDate.AddMinutes($Minutes)
+    $Filter = @{LogName="Windows Powershell";Id=$EventId;StartTime=$StartDate;EndTime=$EndDate}
 
     $Events = Get-WinEvent -FilterHashtable $Filter | Sort-Object -Property RecordId
 
