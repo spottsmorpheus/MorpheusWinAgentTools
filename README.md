@@ -113,6 +113,71 @@ SYNTAX
 
 ```
 
+### Set-MorpheusAgentCredential
+
+Modifies the Morpheus Windows Agent service to run under the Credential Provided.
+**NOTE** User must be a Member of the Local Administrators Group and must have Logon As Service rights granted in the Local Security Policy
+
+Use the -Default parameter to reset the service to run as LocalSystem
+
+You can use Helper function **Set-LogOnAsServiceRight** to grant Logon As Service rights to a credential.
+
+```
+NAME
+    Set-MorpheusAgentCredential
+
+SYNOPSIS
+    Helper Tool used to modify the Agent Service Logon Account
+
+
+SYNTAX
+    Set-MorpheusAgentCredential [[-Credential] <PSCredential>] [-Default] [<CommonParameters>]
+
+
+DESCRIPTION
+
+
+RELATED LINKS
+```
+
+### Set-LogOnAsServiceRight
+
+Helper function used to Grant Logon As Service rights to the User in the Credential Object
+
+```
+
+NAME
+    Set-LogOnAsServiceRight
+
+SYNOPSIS
+    Uses the Local Security Editor to Add LogonAsService rights to the user defined in Credential
+
+
+SYNTAX
+    Set-LogOnAsServiceRight [[-Credential] <PSCredential>] [<CommonParameters>]
+```
+
+### Test-Credential
+
+Helper Function used to test if a credential is valid (can it be authenticated)
+
+```
+
+NAME
+    Test-Credential
+
+SYNTAX
+    Test-Credential [-Credential] <pscredential> [[-Context] {Domain | Machine | ApplicationDirectory}]  [<CommonParameters>]
+
+
+PARAMETERS
+    -Context <string>
+
+    -Credential <pscredential>
+
+
+```
+
 ### Read-AgentLog
 ```
 NAME
