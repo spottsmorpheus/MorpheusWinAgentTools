@@ -345,7 +345,7 @@ Function Set-MorpheusAgentCredential {
                 }
             }
             if ($restart) {
-                Delay-AgentRestart -Delay 10
+                $process = Delay-AgentRestart -Delay 10
             }
         } 
     } else {
@@ -762,4 +762,132 @@ Function Parse-PSLog {
             return $Out
         }
     }
+}
+
+Function Test-Credential
+<#
+.SYNOPSIS
+	Takes a PSCredential object and validates it against the domain (or local machine, or ADAM instance).
+
+.PARAMETER cred
+	A PScredential object with the username/password you wish to test. Typically this is generated using the Get-Credential cmdlet. Accepts pipeline input.
+
+.PARAMETER context
+	An optional parameter specifying what type of credential this is. Possible values are 'Domain','Machine',and 'ApplicationDirectory.' The default is 'Domain.'
+
+.OUTPUTS
+	A boolean, indicating whether the credentials were successfully validated.
+
+#>
+{
+	[CmdletBinding()]
+	Param
+	(
+		[parameter(Mandatory=$true,ValueFromPipeline=$true)]
+        [System.Management.Automation.PSCredential]$Credential,
+		[parameter()][validateset('Domain','Machine','ApplicationDirectory')]
+        [String]$Context = 'Domain'
+	)
+	
+	Begin
+	{
+		Add-Type -assemblyname system.DirectoryServices.accountmanagement
+		if ($context -Match 'Domain')
+		{
+			$DomainName = $Credential.GetNetworkCredential().Domain
+			$DS = New-Object System.DirectoryServices.AccountManagement.PrincipalContext([System.DirectoryServices.AccountManagement.ContextType]::$Context,$DomainName) 
+		}
+		else
+		{
+			$DS = New-Object System.DirectoryServices.AccountManagement.PrincipalContext([System.DirectoryServices.AccountManagement.ContextType]::$Context) 
+		}
+	}
+	process 
+	{
+		$Valid = $DS.ValidateCredentials($Credential.GetNetworkCredential().UserName, $Credential.GetNetworkCredential().password)
+		Write-Verbose "Authenticating Credential $($Credential.UserName) against $Context Context : Validated $Valid"
+		$Valid
+	}
+} #End of Test-Credential
+
+Function Set-LogOnAsServiceRight {
+    <#
+    .SYNOPSIS
+        Uses the Local Security Editor to Add LogonAsService rights to the user defined in Credential
+
+    .PARAMETER Credential
+        Where to dump the script files
+
+    .OUTPUTS
+        Returns $true if successful
+
+    #>
+    [CmdletBinding()] 
+    param(
+        [PSCredential]$Credential
+    )
+        
+    if ($Credential) {
+        try {
+            $user =  New-Object System.Security.Principal.NTAccount($Credential.UserName)
+            $userSid = ($user.Translate([System.Security.Principal.SecurityIdentifier])).Value
+        }
+        catch {
+            Write-Warning "Unable to Obtain SID for user $(Credential.UserName)"
+            return $false
+        }
+    } else {
+        Write-Warning "You must supply a valid Credential Object"
+        return $false 
+    }
+
+    
+    $currentCfgFile = Join-Path -Path $Env:LocalAppData -ChildPath "exportCfg.inf"
+    $newCfgFile = Join-Path -Path $Env:LocalAppData -ChildPath "importCfg.inf"
+    $secDb = Join-Path -Path $Env:LocalAppData -ChildPath "secedit.sdb"
+    $status = $false
+    #Get the current Policy config
+    $export = Invoke-Command -ScriptBlock  {secedit /export /cfg $($currentCfgFile)}
+    if (Test-Path $currentCfgFile) {
+        $Unicode = Select-String -Path $currentCfgFile -Pattern 'Unicode=yes'
+        # Find the SeServiceLogonRight Rights line
+        $currentSetting = Select-String -Path $currentCfgFile -Pattern '^SeServiceLogonRight = .*$'
+        if ($currentSetting) {
+            $currentSids = $currentSetting.line
+            if ($currentSids -match $userSid) {
+                #User Already has right
+                Write-Host "User $($Credential.UserName) already has LogonAsService rights on this computer"
+                $status = $true
+            } else {
+                #Need to add $UserSid to the list of current SIDs
+                $newSids = "{0},*{1}" -f $currentSids, $userSid
+                Write-Host "Updating Policy with $($newSids)"
+                $policy = Get-Content -Path $currentCfgFile -Raw
+                if ($unicode) {
+                    $policy.Replace($currentSids,$newSids) | Set-Content -Path $newCfgFile -Encoding Unicode
+                } else {
+                    $policy.Replace($currentSids,$newSids) | Set-Content -Path $newCfgFile
+                }
+                #Update Policy
+                $update = {
+                    secedit /import /db $secDb /cfg $newCfgFile 
+                    secedit /configure /db $secDb
+                    gpupdate /force 
+                }
+                try {
+                    $out = Invoke-Command -ScriptBlock $update -ErrorAction Stop
+                    $status = $true
+                }
+                catch {
+                    Write-Warning "Exception raised Updating policy $($_.Message.Exception)"
+                    $status = $false
+                }
+            }
+        }
+    }
+    # Clean-Up
+    if (Test-Path -Path $currentCfgFile) {Remove-Item -Path $currentCfgFile -Force}
+    if (Test-Path -Path $newCfgFile) {Remove-Item -Path $newCfgFile -Force}
+    if (Test-Path -Path $secDb) {Remove-Item -Path $secDb -Force}
+    $status
 }
