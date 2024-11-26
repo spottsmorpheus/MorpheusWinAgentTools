@@ -246,6 +246,7 @@ Function Get-MorpheusAgentSocketStatus {
         machineName=[Environment]::MachineName;
         agentStatus="";
         agentState="";
+        logonAs="";
         apiKey="";
         agentPid=$null;
         agentSockets=$null
@@ -256,6 +257,7 @@ Function Get-MorpheusAgentSocketStatus {
         if ($Agent) {
             $Status.agentStatus = $Agent.Status
             $Status.agentState = $Agent.State
+            $Status.logonAs = $Agent.StartName
             $Status.apiKey = Get-MorpheusAgentApiKey
             # We have an agent - Does it have a Pid
             if ($Agent.ProcessId -Ne 0) {
