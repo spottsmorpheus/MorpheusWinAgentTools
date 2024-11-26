@@ -30,6 +30,12 @@ if ($Response.StatusCode -eq 200) {
 
 ## About the Functions
 
+To list the Functions in this module use the commands above to load the Module and then run the Powershell commanf
+
+```
+Get-Command -Module "MorpheusAgentFunctions"
+```
+
 It is possible to run these Powershell script from a Morpheus Task. You can use a Remote task (winRm) or even the Morpheus Agent itself. When changes are made to the agent config using the Morpheus Agent, a delayed restart is used to ensure the task completes and returns an acknowledgement to Morpheus, preventing possible issues with the task being re-queued by RabbitMq
 
 ### Get-MorpheusAgentSocketStatus
