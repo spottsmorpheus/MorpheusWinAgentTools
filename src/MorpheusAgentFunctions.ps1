@@ -469,6 +469,7 @@ Function Read-AgentLog {
     param (
         [DateTime]$StartDate=[DateTime]::Now.AddMinutes(-30),
         [Int32]$Minutes=60,
+        [Int32]$ClockAdjust,
         [Switch]$AsJson
     )
 
@@ -482,6 +483,7 @@ Function Read-AgentLog {
     $Events = Get-WinEvent -FilterHashtable $Filter | Sort-Object -Property RecordId
 
     $eventData = foreach ($e in $Events) {
+        if ($ClockAdjust) {$timeStamp = $e.TimeCreated.AddSeconds($clockAdjust)} else {$timeStamp = $e.TimeCreated}
         $output = [PSCustomObject]@{
             computer=$e.MachineName;
             recordId=$e.RecordId;
@@ -635,6 +637,7 @@ Function Read-PSLog {
         [String]$Computer=$null,
         [DateTime]$StartDate,
         [Int32]$Minutes=60,
+        [Int32]$ClockAdjust,
         [Switch]$AsJson
     )
 
@@ -648,10 +651,11 @@ Function Read-PSLog {
     $Events = Get-WinEvent -FilterHashtable $Filter | Sort-Object -Property RecordId
 
     $eventData = foreach ($e in $Events) {
+        if ($ClockAdjust) {$timeStamp = $e.TimeCreated.AddSeconds($clockAdjust)} else {$timeStamp = $e.TimeCreated}
         $output = [PSCustomObject]@{
             computer=$e.MachineName;
             index=$e.RecordId;
-            Time=$e.TimeCreated.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+            Time=$timeStamp.TimeCreated.ToString("yyyy-MM-ddTHH:mm:ss.fff");
             host="";
             command="";
             encodedcommand=""
