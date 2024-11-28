@@ -487,7 +487,7 @@ Function Read-AgentLog {
         $output = [PSCustomObject]@{
             computer=$e.MachineName;
             recordId=$e.RecordId;
-            timeStamp=$e.TimeCreated.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+            timeStamp=$timeStamp.ToString("yyyy-MM-ddTHH:mm:ss.fff");
             message=$e.Message
         }
         $output
@@ -655,7 +655,7 @@ Function Read-PSLog {
         $output = [PSCustomObject]@{
             computer=$e.MachineName;
             index=$e.RecordId;
-            Time=$timeStamp.TimeCreated.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+            Time=$timeStamp.ToString("yyyy-MM-ddTHH:mm:ss.fff");
             host="";
             command="";
             encodedcommand=""
