@@ -582,6 +582,65 @@ Function Parse-StompMessage {
 
 }
 
+Function Get-StompActionAck {
+    <#
+    .SYNOPSIS
+        Takes the output from Parse-StompMessage and extracts the actionAcknowledged messages
+
+    .PARAMETER Message
+        Output from Parse-StompMessage
+
+    .OUTPUTS
+        DateTime when the Windows Installation completed
+
+    #>
+    [CmdletBinding()]    
+    param (
+        [Parameter(Mandatory = $true, Position = 0,ValueFromPipeline=$true)]
+        [Object[]]$Message,
+        [Switch]$AsJson
+    )
+
+    begin {
+        $Out = [System.Collections.Generic.List[PSCustomObject]]::new()
+    }
+    process {
+        foreach ($frame in $Message) {
+            if (($frame.frameType -eq "SEND") -and ($frame.header.destination -eq "/app/actionAcknowledged")) {
+                # Ack frame
+                $ack = [PSCustomObject]@{
+                    recordId = $frame.recordId;
+                    timeStamp = $frame.timeStamp;
+                    request = $frame.body.id;
+                    cmd = ""
+                    exitValue = $frame.body.data.exitValue;
+                    output = $frame.body.data.output;
+                    error = $frame.body.data.error
+                }
+                $out.Add($ack)
+            } elseif (($frame.frameType -eq "MESSAGE") -and ($frame.header.destination -eq "/user/queue/morpheusAgentActions")) {
+                # Action frame
+                $request =  if ($frame.body.id) {$frame.body.id} else {"frame too long for log"}
+                $cmd =  if ($frame.body.id) {$frame.body.decodedScript} else {"frame too long for log"}
+                $ack = [PSCustomObject]@{
+                    recordId = $frame.recordId;
+                    timeStamp = $frame.timeStamp;
+                    request = $request;
+                    cmd = $cmd;
+                    exitValue = "";
+                    output = "";
+                    error = ""
+                }
+                $out.Add($ack)
+            }
+        }
+    }
+    end {
+        return $out
+    }
+
+}
+
 Function Get-ScheduledTaskEvents {
     [CmdletBinding()]
     param (
@@ -897,3 +956,4 @@ Function Set-LogOnAsServiceRight {
     if (Test-Path -Path $secDb) {Remove-Item -Path $secDb -Force}
     $status
 }
+
