@@ -469,6 +469,7 @@ Function Read-AgentLog {
     param (
         [DateTime]$StartDate=[DateTime]::Now.AddMinutes(-30),
         [Int32]$Minutes=60,
+        [Int32]$ClockAdjust,
         [Switch]$AsJson
     )
 
@@ -482,10 +483,11 @@ Function Read-AgentLog {
     $Events = Get-WinEvent -FilterHashtable $Filter | Sort-Object -Property RecordId
 
     $eventData = foreach ($e in $Events) {
+        if ($ClockAdjust) {$timeStamp = $e.TimeCreated.AddSeconds($clockAdjust)} else {$timeStamp = $e.TimeCreated}
         $output = [PSCustomObject]@{
             computer=$e.MachineName;
             recordId=$e.RecordId;
-            timeStamp=$e.TimeCreated.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+            timeStamp=$timeStamp.ToString("yyyy-MM-ddTHH:mm:ss.fff");
             message=$e.Message
         }
         $output
@@ -580,6 +582,65 @@ Function Parse-StompMessage {
 
 }
 
+Function Get-StompActionAck {
+    <#
+    .SYNOPSIS
+        Takes the output from Parse-StompMessage and extracts the actionAcknowledged messages
+
+    .PARAMETER Message
+        Output from Parse-StompMessage
+
+    .OUTPUTS
+        DateTime when the Windows Installation completed
+
+    #>
+    [CmdletBinding()]    
+    param (
+        [Parameter(Mandatory = $true, Position = 0,ValueFromPipeline=$true)]
+        [Object[]]$Message,
+        [Switch]$AsJson
+    )
+
+    begin {
+        $Out = [System.Collections.Generic.List[PSCustomObject]]::new()
+    }
+    process {
+        foreach ($frame in $Message) {
+            if (($frame.frameType -eq "SEND") -and ($frame.header.destination -eq "/app/actionAcknowledged")) {
+                # Ack frame
+                $ack = [PSCustomObject]@{
+                    recordId = $frame.recordId;
+                    timeStamp = $frame.timeStamp;
+                    request = $frame.body.id;
+                    cmd = ""
+                    exitValue = $frame.body.data.exitValue;
+                    output = $frame.body.data.output;
+                    error = $frame.body.data.error
+                }
+                $out.Add($ack)
+            } elseif (($frame.frameType -eq "MESSAGE") -and ($frame.header.destination -eq "/user/queue/morpheusAgentActions")) {
+                # Action frame
+                $request =  if ($frame.body.id) {$frame.body.id} else {"frame too long for log"}
+                $cmd =  if ($frame.body.id) {$frame.body.decodedCommand} else {"frame too long for log"}
+                $ack = [PSCustomObject]@{
+                    recordId = $frame.recordId;
+                    timeStamp = $frame.timeStamp;
+                    request = $request;
+                    cmd = $cmd;
+                    exitValue = "";
+                    output = "";
+                    error = ""
+                }
+                $out.Add($ack)
+            }
+        }
+    }
+    end {
+        return $out
+    }
+
+}
+
 Function Get-ScheduledTaskEvents {
     [CmdletBinding()]
     param (
@@ -635,6 +696,7 @@ Function Read-PSLog {
         [String]$Computer=$null,
         [DateTime]$StartDate,
         [Int32]$Minutes=60,
+        [Int32]$ClockAdjust,
         [Switch]$AsJson
     )
 
@@ -648,10 +710,11 @@ Function Read-PSLog {
     $Events = Get-WinEvent -FilterHashtable $Filter | Sort-Object -Property RecordId
 
     $eventData = foreach ($e in $Events) {
+        if ($ClockAdjust) {$timeStamp = $e.TimeCreated.AddSeconds($clockAdjust)} else {$timeStamp = $e.TimeCreated}
         $output = [PSCustomObject]@{
             computer=$e.MachineName;
             index=$e.RecordId;
-            Time=$e.TimeCreated.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+            Time=$timeStamp.ToString("yyyy-MM-ddTHH:mm:ss.fff");
             host="";
             command="";
             encodedcommand=""
@@ -893,3 +956,4 @@ Function Set-LogOnAsServiceRight {
     if (Test-Path -Path $secDb) {Remove-Item -Path $secDb -Force}
     $status
 }
+
