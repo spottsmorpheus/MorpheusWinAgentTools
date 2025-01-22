@@ -200,6 +200,10 @@ SYNTAX
 
 ### Parse-StompMessage
 
+Requires Agent in Debug or Info mode
+
+Takes the events and attemps to categorise the Stomp frames. You can pipe the output to ConvertTo-Json -Depth 5 to see the frames in json format
+
 ```
 NAME
     Parse-StompMessage
@@ -212,6 +216,28 @@ SYNTAX
     Parse-StompMessage [-AgentEvent] <Object[]> [<CommonParameters>]
 
 
+```
+
+### Get-StompActionAck
+
+Requires Agent in Debug or Info mode
+
+Use this function with Parse-StompMessage to attempt to match up the Action requests and responses contained within the stomp frames.  The Microsoft Event log has a character limit so often the log message has an incomplete frame. In this case the output will say the frame is too long 
+
+an example may be to show the Agent command actions starting at the DateTime in variable $Start for a duration of 10 minutes
+
+Read-Agentlog -StartDate $start -Minutes 10 | Parse-StompMessage | Get-StompActionAck
+
+```
+NAME
+    Get-StompActionAck
+
+SYNOPSIS
+    Takes the output from Parse-StompMessage and extracts the actionAcknowledged messages
+
+
+SYNTAX
+    Get-StompActionAck [-Message] <Object[]> [-AsJson] [<CommonParameters>]
 ```
 
 
