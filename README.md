@@ -2,7 +2,7 @@
 
 ## Powershell tool for viewing and configuring Morpheus Windows agent
 
-This Powershell script contains a number of functions to view and edit the Morpheus Windows Agent configuratiion file and also view the current connected status of the Agent service
+This Powershell script contains a number of functions to view and edit the Morpheus Windows Agent configuration file and also view the current connected status of the Agent service
 
 To load the script Dot Source the MorpheusAgentFunctions.ps1 file into a powershell session
 
@@ -10,7 +10,16 @@ To load the script Dot Source the MorpheusAgentFunctions.ps1 file into a powersh
 PS> . .\MorpheusAgentFunctions.ps1
 ```
 
-**NOTE** to run these Powershell Scripts the account must be and Administrator and the session elevated. The scriopt will warn if there are insuccifient access rights.
+## Windows Event Logs 
+
+These scripts access the Windows Event logs
+
+- Morpheus Windows Agent (Read-AgentLog)
+- Windows Powershell (Read-PSLog)
+
+These logs are rolled over quite frequently so to aid debugging you may need to increase the log size to capture more of the raw logs. Using Event Viewer locate the event log named above and select Properties. Increase the Maximum Log Size to a value that suits your needs.
+
+**NOTE** to run these Powershell Scripts the account must be and Administrator and the session elevated. The script will warn if there are insuccifient access rights.
 
 Functions have some help available which can be access via the Powershell Get-Help \<Function-Name\> command
 
@@ -30,7 +39,7 @@ if ($Response.StatusCode -eq 200) {
 
 ## About the Functions
 
-To list the Functions in this module use the commands above to load the Module and then run the Powershell commanf
+To list the Functions in this module use the commands above to load the Module and then run the Powershell command
 
 ```
 Get-Command -Module "MorpheusAgentFunctions"
