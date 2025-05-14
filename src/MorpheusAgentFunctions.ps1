@@ -526,13 +526,26 @@ Function Parse-StompMessage {
     Process {
         foreach ($Event in $AgentEvent) {
             $m = $Event.Message
-            $stomp = [PSCustomObject]@{
-                recordId = $Event.RecordId;
-                timeStamp = $Event.timeStamp;
-                frameType="";
-                header=[PSCustomObject]@{};
-                body=[PSCustomObject]@{}
+            if ($Event.GetType().Name -eq "EventLogRecord") {
+                #This is a raw Event log record
+                $stomp = [PSCustomObject]@{
+                    recordId = $Event.RecordId;
+                    timeStamp = $Event.TimeCreated;
+                    frameType="";
+                    header=[PSCustomObject]@{};
+                    body=[PSCustomObject]@{}
+                }
+            } else {
+                # this record was filtered by Read-Agentlog
+                $stomp = [PSCustomObject]@{
+                    recordId = $Event.RecordId;
+                    timeStamp = $Event.timeStamp;
+                    frameType="";
+                    header=[PSCustomObject]@{};
+                    body=[PSCustomObject]@{}
+                }
             }
+
             #Match and capture the json body in a Stomp Frame
             $data = $null
             if ($m -Match "^INFO:Received Stomp Frame: ([A-Z]*)\\n(.*)$") {
