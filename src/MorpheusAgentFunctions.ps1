@@ -480,8 +480,14 @@ Function Read-AgentLog {
     $EndDate = $StartDate.AddMinutes($Minutes)
     $Filter = @{LogName="Morpheus Windows Agent";StartTime=$StartDate;EndTime=$EndDate}
 
-    $Events = Get-WinEvent -FilterHashtable $Filter | Sort-Object -Property RecordId
-
+    try {
+        $Events = Get-WinEvent -FilterHashtable $Filter -ErrorAction "Stop" | Sort-Object -Property RecordId
+    }
+    catch {
+        Write-Warning "No Events found in this timnespan"
+        return
+    }
+    
     $eventData = foreach ($e in $Events) {
         if ($ClockAdjust) {$timeStamp = $e.TimeCreated.AddSeconds($clockAdjust)} else {$timeStamp = $e.TimeCreated}
         $output = [PSCustomObject]@{
@@ -720,7 +726,13 @@ Function Read-PSLog {
     $EndDate = $StartDate.AddMinutes($Minutes)
     $Filter = @{LogName="Windows Powershell";Id=$EventId;StartTime=$StartDate;EndTime=$EndDate}
 
-    $Events = Get-WinEvent -FilterHashtable $Filter | Sort-Object -Property RecordId
+    try {
+        $Events = Get-WinEvent -FilterHashtable $Filter -ErrorAction "Stop" | Sort-Object -Property RecordId
+    }
+    catch {
+        Write-Warning "No Events found in this timnespan"
+        return
+    }
 
     $eventData = foreach ($e in $Events) {
         if ($ClockAdjust) {$timeStamp = $e.TimeCreated.AddSeconds($clockAdjust)} else {$timeStamp = $e.TimeCreated}
