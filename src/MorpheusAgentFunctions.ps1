@@ -631,7 +631,7 @@ Function Get-StompActionAck {
                     recordId = $frame.recordId;
                     timeStamp = $frame.timeStamp;
                     request = $frame.body.id;
-                    cmd = ""
+                    cmd = "";
                     exitValue = $frame.body.data.exitValue;
                     output = $frame.body.data.output;
                     error = $frame.body.data.error
@@ -640,7 +640,7 @@ Function Get-StompActionAck {
             } elseif (($frame.frameType -eq "MESSAGE") -and ($frame.header.destination -eq "/user/queue/morpheusAgentActions")) {
                 # Action frame
                 $request =  if ($frame.body.id) {$frame.body.id} else {"frame too long for log"}
-                $cmd =  if ($frame.body.id) {$frame.body.decodedCommand} else {"frame too long for log"}
+                $cmd =  if ($frame.body.id) {$frame.body.decodedScript} else {"frame too long for log"}
                 $ack = [PSCustomObject]@{
                     recordId = $frame.recordId;
                     timeStamp = $frame.timeStamp;
