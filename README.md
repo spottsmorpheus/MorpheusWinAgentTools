@@ -28,6 +28,7 @@ Functions have some help available which can be access via the Powershell Get-He
 It is possible to load these Functions directly from GitHub if your Endpoint has an Internet connection. Use the following  Powershell to download and Install a Dynamic Module directly from a GitHub Url
 
 ```
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls11 -bor [System.Net.SecurityProtocolType]::Tls12
 $Uri = "https://raw.githubusercontent.com/spottsmorpheus/MorpheusWinAgentTools/main/src/MorpheusAgentFunctions.ps1"
 $ProgressPreference = "SilentlyContinue"
 # Load Powershell code from GitHub Uri and invoke as a temporary Module
@@ -229,13 +230,9 @@ SYNTAX
 
 ### Get-StompActionAck
 
-Requires Agent in Debug or Info mode
+**NOTE**  Requires the Morpheus Windows Agent in Debug or Info mode to log the raw messages in the windows Event Log
 
-Use this function with Parse-StompMessage to attempt to match up the Action requests and responses contained within the stomp frames.  The Microsoft Event log has a character limit so often the log message has an incomplete frame. In this case the output will say the frame is too long 
-
-an example may be to show the Agent command actions starting at the DateTime in variable $Start for a duration of 10 minutes
-
-Read-Agentlog -StartDate $start -Minutes 10 | Parse-StompMessage | Get-StompActionAck
+Use this function with Parse-StompMessage to attempt to match up the Action requests and responses contained within the stomp frames.  The Microsoft Event log has a character limit so often the log message has an incomplete frame. In this case the output will say the frame is too long.
 
 ```
 NAME
@@ -249,8 +246,73 @@ SYNTAX
     Get-StompActionAck [-Message] <Object[]> [-AsJson] [<CommonParameters>]
 ```
 
+Here is an example, show the Agent command actions starting at the DateTime in variable $Start for a duration of 10 minutes, The output shows the recordId of the request and that of the matching response (request property will match). Record id 49709 shows the decoded command in the property cmd and recordId 49714 shows the output. Note the request property matches showing the relationship between command request and response
 
-### Examples
+```
+Read-Agentlog -StartDate $Start -Minutes 10 | Parse-StompMessage | Get-StompActionAck
+
+recordId  : 49709
+timeStamp : 2025-05-20T17:37:31.929
+request   : c8ba5345-eccb-46dc-960e-31c3b8801f5d
+cmd       : $ProgressPreference = 'SilentlyContinue'
+            $Uri = "https://raw.githubusercontent.com/spottsmorpheus/WindowsSecEvents/main/src/WindowsSecEvents.ps1"
+            $ProgressPreference = "SilentlyContinue"
+            # Load Powershell code from GitHub Uri and invoke as a temporary Module
+            $Response = Invoke-WebRequest -Uri $Uri -UseBasicParsing
+            if ($Response.StatusCode -eq 200) {
+                $Module = New-Module -Name "WindowsSecEvents" -ScriptBlock ([ScriptBlock]::Create($Response.Content))
+            }
+
+            Get-RpcSessionInfo -AsJson
+
+exitValue :
+output    :
+error     :
+
+recordId  : 49714
+timeStamp : 2025-05-20T17:37:32.867
+request   : c8ba5345-eccb-46dc-960e-31c3b8801f5d
+cmd       :
+exitValue : 0
+output    : {
+                "status":  0,
+                "cmdOut":  {
+                               "userId":  "NT AUTHORITY\\SYSTEM",
+                               "computerName":  "MYINSTANCE",
+                               "manufacturer":  "VMware, Inc.",
+                               "model":  "VMware Virtual Platform",
+                               "domainName":  "myad.com",
+                               "domainJoined":  true,
+                               "authenticationType":  "Negotiate",
+                               "impersonation":  "None",
+                               "isAdmin":  true,
+                               "localProfile":  "C:\\Windows\\system32\\config\\systemprofile\\AppData\\Local",
+                               "tokenGroups":  [
+                                                   "BUILTIN\\Administrators",
+                                                   "Everyone",
+                                                   "NT AUTHORITY\\Authenticated Users"
+                                               ],
+                               "isSystem":  true,
+                               "isService":  false,
+                               "isNetwork":  false,
+                               "isBatch":  false,
+                               "isInteractive":  false,
+                               "isNtlmToken":  false,
+                               "osVersion":  "Microsoft Windows NT 10.0.17763.0",
+                               "systemDrive":  "C:",
+                               "psVersion":  "5.1.17763.592",
+                               "psEdition":  "Desktop",
+                               "psExePath":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+                           },
+                "errOut":  null
+            }
+
+error     :
+
+```
+
+
+## Some more Examples
 
 Set the Morpheus Agent log level to Informational level (1) restarting the agent after a 60 second delay
 
@@ -284,9 +346,10 @@ Read-AgentLog | Parse-StompMessage
 
 
 Set the agent to use a proxy. Set bypass proxy on the local network to false. 
-Also set a proxy bypass list of addresses with a regex
+Also set a proxy bypass list of addresses with a regex. To do this construct an XML fragment as shown below
 
 ```
+# Create an XML String with containing the proxy details
 $proxyXml = @'
 <configuration>
   <system.net>
@@ -300,7 +363,8 @@ $proxyXml = @'
 </configuration>
 '@
 
-Set-MorpheusAgentConfig -ProxyXml $proxyXml
+# Then use the Set-MorpheusAgentConfig funtion to update the config and restart the agent
+Set-MorpheusAgentConfig -ProxyXml $proxyXml -RestartAgent
 
 Paramater specifies following XML for <defaultProxy> element
 <?xml version="1.0" encoding="utf-16"?>
