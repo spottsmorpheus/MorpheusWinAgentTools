@@ -44,6 +44,29 @@ To list the Functions in this module use the commands above to load the Module a
 
 ```
 Get-Command -Module "MorpheusAgentFunctions"
+
+CommandType Name
+----------- ----
+   Function Base64Decode
+   Function Delay-AgentRestart
+   Function Get-MorpheusAgentApiKey
+   Function Get-MorpheusAgentConfig
+   Function Get-MorpheusAgentSocketStatus
+   Function Get-ScheduledTaskEvents
+   Function Get-StompActionAck
+   Function IsElevated
+   Function Make-HTMLTable
+   Function Out-HtmlPage
+   Function Parse-PSLog
+   Function Parse-StompMessage
+   Function Read-AgentLog
+   Function Read-PSLog
+   Function Set-LogOnAsServiceRight
+   Function Set-MorpheusAgentConfig
+   Function Set-MorpheusAgentCredential
+   Function Test-Credential
+   Function test-pipe
+   Function XmlPrettyPrint
 ```
 
 It is possible to run these Powershell script from a Morpheus Task. You can use a Remote task (winRm) or even the Morpheus Agent itself. When changes are made to the agent config using the Morpheus Agent, a delayed restart is used to ensure the task completes and returns an acknowledgement to Morpheus, preventing possible issues with the task being re-queued by RabbitMq
@@ -420,3 +443,116 @@ Returning Updated Agent Config ...
 ```
 
 See the Microsoft pages for details https://learn.microsoft.com/en-us/previous-versions/dotnet/netframework-1.1/aa903360(v=vs.71)
+
+## Rerading the Powershell Log
+
+There are 2 functions included in this module to read the Windows Powershell log. This can be useful alongside the Morpheus Agent Log as it logs every Powershell command executed on the instance.  The Powershell log can be accessed even of a Morpheus Agent is not installed
+
+### Read-PSlog
+
+Read events from the Windows Powershell event log
+
+```
+NAME
+    Read-PSLog
+
+SYNOPSIS
+    Reads the Windows Powershell logs and returns script executions. If the script is Base64 encoded then
+    this script decodes and returns the actual powershell. Useful for reading any Morpheus WinRm RPC commands
+
+
+SYNTAX
+    Read-PSLog [[-EventId] <Object>] [[-Computer] <String>] [[-StartDate] <DateTime>] [[-Minutes] <Int32>] [[-ClockAdjust] <Int32>] [-AsJson] [<CommonParameters>]
+
+
+DESCRIPTION
+
+
+PARAMETERS
+    -EventId <Object>
+        Event ID to read. Default is Event 400
+
+    -Computer <String>
+        Computername. Default is local Computer
+
+    -StartDate <DateTime>
+        Date / Time to start reading the log
+
+    -Minutes <Int32>
+        Number of Minutes to read from StartDate - Default 60
+
+    -ClockAdjust <Int32>
+
+    -AsJson [<SwitchParameter>]
+        Output results in json
+```
+
+Example
+
+```
+Read-PSlog
+
+computer       : myinstance.mydomain.com
+index          : 962
+Time           : 2025-05-20T20:32:47.716
+host           : ConsoleHost
+command        : powershell.exe -NoProfile -encodedcommand JABQAHIAbwBnAHIAZQBzAHMAUAByAGUAZgBlAHIAZQBuAGMAZQAgAD0AIAAn
+                 AFMAaQBsAGUAbgB0AGwAeQBDAG8AbgB0AGkAbgB1AGUAJwAKACQAVQByAGkAIAA9ACAAIgBoAHQAdABwAHMAOgAvAC8AcgBhAHcALg
+                 BnAGkAdABoAHUAYgB1AHMAZQByAGMAbwBuAHQAZQBuAHQALgBjAG8AbQAvAHMAcABvAHQAdABzAG0AbwByAHAAaABlAHUAcwAvAFcA
+                 aQBuAGQAbwB3AHMAUwBlAGMARQB2AGUAbgB0AHMALwBtAGEAaQBuAC8AcwByAGMALwBXAGkAbgBkAG8AdwBzAFMAZQBjAEUAdgBlAG
+                 4AdABzAC4AcABzADEAIgAKACQAUAByAG8AZwByAGUAcwBzAFAAcgBlAGYAZQByAGUAbgBjAGUAIAA9ACAAIgBTAGkAbABlAG4AdABs
+                 AHkAQwBvAG4AdABpAG4AdQBlACIACgAjACAATABvAGEAZAAgAFAAbwB3AGUAcgBzAGgAZQBsAGwAIABjAG8AZABlACAAZgByAG8AbQ
+                 AgAEcAaQB0AEgAdQBiACAAVQByAGkAIABhAG4AZAAgAGkAbgB2AG8AawBlACAAYQBzACAAYQAgAHQAZQBtAHAAbwByAGEAcgB5ACAA
+                 TQBvAGQAdQBsAGUACgAkAFIAZQBzAHAAbwBuAHMAZQAgAD0AIABJAG4AdgBvAGsAZQAtAFcAZQBiAFIAZQBxAHUAZQBzAHQAIAAtAF
+                 UAcgBpACAAJABVAHIAaQAgAC0AVQBzAGUAQgBhAHMAaQBjAFAAYQByAHMAaQBuAGcACgBpAGYAIAAoACQAUgBlAHMAcABvAG4AcwBl
+                 AC4AUwB0AGEAdAB1AHMAQwBvAGQAZQAgAC0AZQBxACAAMgAwADAAKQAgAHsACgAgACAAIAAgACQATQBvAGQAdQBsAGUAIAA9ACAATg
+                 BlAHcALQBNAG8AZAB1AGwAZQAgAC0ATgBhAG0AZQAgACIAVwBpAG4AZABvAHcAcwBTAGUAYwBFAHYAZQBuAHQAcwAiACAALQBTAGMA
+                 cgBpAHAAdABCAGwAbwBjAGsAIAAoAFsAUwBjAHIAaQBwAHQAQgBsAG8AYwBrAF0AOgA6AEMAcgBlAGEAdABlACgAJABSAGUAcwBwAG
+                 8AbgBzAGUALgBDAG8AbgB0AGUAbgB0ACkAKQAKAH0ACgAKAEcAZQB0AC0AUgBwAGMAUwBlAHMAcwBpAG8AbgBJAG4AZgBvACAALQBB
+                 AHMASgBzAG8AbgAKAA==
+encodedcommand : $ProgressPreference = 'SilentlyContinue'
+                 $Uri =
+                 "https://raw.githubusercontent.com/spottsmorpheus/WindowsSecEvents/main/src/WindowsSecEvents.ps1"
+                 $ProgressPreference = "SilentlyContinue"
+                 # Load Powershell code from GitHub Uri and invoke as a temporary Module
+                 $Response = Invoke-WebRequest -Uri $Uri -UseBasicParsing
+                 if ($Response.StatusCode -eq 200) {
+                     $Module = New-Module -Name "WindowsSecEvents" -ScriptBlock
+                 ([ScriptBlock]::Create($Response.Content))
+                 }
+
+                 Get-RpcSessionInfo -AsJson
+```
+
+The output shows the raw command (command property) and the base64 decoded string (encodedCommand property)
+
+**Note** The results of the command execution are NOT recorded in the event log
+
+### Parse-PSLog
+
+When Powershell Scripts execeed a certain size, Morpheus will split the powershell info fragments and transfer the fragment over to the instance before re-assembling them into a temporary script and executing. 
+
+
+The Parse-PSLog function takes the output from Read-PSLog and is able to reassemble the fragments allowing the full script to be inspected.
+
+```
+$cmd = Read-PSLog | Parse-PSLog
+
+id         : rpc-962
+eventIndex : 962
+length     : 488
+executed   : 2025-05-20T20:32:47.716
+content    : $ProgressPreference = 'SilentlyContinue'
+             $Uri = "https://raw.githubusercontent.com/spottsmorpheus/WindowsSecEvents/main/src/WindowsSecEvents.ps1"
+             $ProgressPreference = "SilentlyContinue"
+             # Load Powershell code from GitHub Uri and invoke as a temporary Module
+             $Response = Invoke-WebRequest -Uri $Uri -UseBasicParsing
+             if ($Response.StatusCode -eq 200) {
+                 $Module = New-Module -Name "WindowsSecEvents" -ScriptBlock ([ScriptBlock]::Create($Response.Content))
+             }
+
+             Get-RpcSessionInfo -AsJson
+
+
+```
+
